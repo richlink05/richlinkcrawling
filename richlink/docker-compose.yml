@@ -1,0 +1,60 @@
+# 참고: 기본 운영 방식은 GitHub Actions(.github/workflows/collect.yml)이고
+# 실제 배포도 Railway(api 서비스)만 쓰면 된다. redis/worker/beat는 Celery로
+# 셀프 호스팅하고 싶을 때만 쓰는 선택 사항이라, 로컬 개발/테스트 용도로만
+# db + api 두 서비스만 띄워도 충분하다.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: richlink
+      POSTGRES_PASSWORD: richlink
+      POSTGRES_DB: richlink
+    ports:
+      - "5432:5432"
+    volumes:
+      - richlink_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U richlink"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    command: uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
+
+  worker:
+    build: .
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: celery -A backend.scheduler.celery_app worker --loglevel=info --concurrency=4
+
+  beat:
+    build: .
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: celery -A backend.scheduler.celery_app beat --loglevel=info
+
+volumes:
+  richlink_db_data:
