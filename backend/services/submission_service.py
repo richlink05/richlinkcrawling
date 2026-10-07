@@ -107,7 +107,7 @@ class SubmissionService:
             project = by_ref.get(result.client_ref)
             if project is None:
                 continue
-            project.attempt_count += 1
+            project.attempt_count = (project.attempt_count or 0) + 1
             project.submitted_at = now
             if result.success:
                 project.submission_status = SubmissionStatus.SUCCESS

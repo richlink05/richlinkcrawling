@@ -114,7 +114,12 @@ python -m backend.scheduler.run_once   # 수집 + 전송을 한 번 실행
    - `HOMEHAVER_API_TOKEN` — 홈해버가 발급한 비밀 토큰
 4. `.github/workflows/collect.yml`이 **매주 월요일 03:00(KST)**에 자동으로 수집+전송을
    실행한다. Actions 탭의 "Run workflow" 버튼으로 수동 실행도 가능하다.
-5. 수집 현황을 확인/삭제/재시도하는 FastAPI Admin은 Railway에 올린다 — 이 저장소의
-   `Dockerfile`을 그대로 쓰면 되고, Railway에도 `DATABASE_URL` / `HOMEHAVER_API_URL` /
-   `HOMEHAVER_API_TOKEN` 세 가지를 동일하게 환경변수로 등록하면 된다. "재시도" 기능이
+5. 수집 현황을 확인/삭제/재시도하는 어드민 화면은 (선택사항) Render의 Free Web Service에
+   올린다 — 이 저장소의 `Dockerfile`을 그대로 쓰면 되고, `DATABASE_URL` / `HOMEHAVER_API_URL`
+   / `HOMEHAVER_API_TOKEN`에 더해 `ADMIN_TOKEN`(아무 문자열이나 직접 정한 비밀번호)도
+   환경변수로 등록해야 한다. 배포 후 `https://<render-주소>/admin`으로 들어가서 그 토큰을
+   입력하면 수집 현황을 표로 보고, 실패건 재시도/삭제를 할 수 있다. "재시도" 기능이
    내부적으로 홈해버 API를 다시 호출하기 때문에 Admin API에도 토큰이 필요하다.
+
+   단, 이 어드민 화면 자체는 선택사항이다 — 실패한 건은 다음 주 자동 수집 때 어차피
+   재시도되고, 단순 조회/삭제는 Supabase Table Editor에서도 할 수 있다.

@@ -7,7 +7,7 @@ from __future__ import annotations
 import uuid
 from typing import Generic, TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.base import Base
@@ -85,3 +85,12 @@ class ProjectRepository(BaseRepository[Project]):
         stmt = select(Project).where(Project.submission_status == status).limit(limit)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def count_by_submission_status(self) -> dict[str, int]:
+        """상태별 건수. 어드민 화면 상단 요약 카드에 쓴다."""
+        stmt = select(Project.submission_status, func.count()).group_by(Project.submission_status)
+        result = await self._session.execute(stmt)
+        counts = {status.value: 0 for status in SubmissionStatus}
+        for submission_status, count in result.all():
+            counts[submission_status.value] = count
+        return counts

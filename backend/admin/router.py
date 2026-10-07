@@ -11,12 +11,15 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.admin.auth import require_admin_token
 from backend.admin.schemas import ProjectOut, RetrySummaryOut
 from backend.models.base import get_db_session
 from backend.models.enums import SubmissionStatus
 from backend.services.admin_service import AdminService
 
-router = APIRouter(prefix="/admin/projects", tags=["admin"])
+router = APIRouter(
+    prefix="/admin/projects", tags=["admin"], dependencies=[Depends(require_admin_token)]
+)
 
 
 def get_admin_service(session: AsyncSession = Depends(get_db_session)) -> AdminService:
@@ -34,6 +37,12 @@ async def list_projects(
     """수집 결과 목록을 조회한다. submission_status로 필터링할 수 있다."""
     projects = await service.list_projects(status=submission_status, limit=limit, offset=offset)
     return [ProjectOut.model_validate(project) for project in projects]
+
+
+@router.get("/summary/counts")
+async def summary_counts(service: AdminService = Depends(get_admin_service)) -> dict[str, int]:
+    """상태별(pending/success/failed/skipped) 건수 요약. 화면 상단 카드용."""
+    return await service.count_by_status()
 
 
 @router.get("/{project_id}", response_model=ProjectOut)

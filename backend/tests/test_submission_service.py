@@ -123,7 +123,7 @@ class TestSubmitPending:
     ) -> None:
         pending_project = Project(
             title="신규 현장", address="주소", city="서울특별시", district="강남구",
-            raw_type="아파트", mapped_type="아파트",
+            raw_type="아파트", mapped_type="아파트", attempt_count=0,
         )
         client = _FakeClient(
             [SubmissionResult(client_ref=str(pending_project.id), success=True, listing_id="L1")]

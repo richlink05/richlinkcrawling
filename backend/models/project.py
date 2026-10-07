@@ -121,3 +121,5 @@ class ProjectSource(UUIDPrimaryKeyMixin, Base):
     )
     spider_name: Mapped[str] = mapped_column(String(100), nullable=False)
     source_url: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    project: Mapped["Project"] = relationship(back_populates="sources")

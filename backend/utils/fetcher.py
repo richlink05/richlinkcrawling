@@ -9,13 +9,18 @@ from __future__ import annotations
 
 import httpx
 from playwright.async_api import async_playwright
-from playwright_stealth import stealth_async
+from playwright_stealth import Stealth
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from backend.config.settings import Settings, get_settings
 from backend.utils.logger import get_logger
 
 logger = get_logger("fetcher")
+
+# playwright-stealth 2.x부터는 함수(stealth_async) 대신 Stealth 클래스 인스턴스의
+# 메서드(apply_stealth_async)를 쓴다. 설정 기본값 그대로 써도 충분해서 모듈
+# 전역에서 한 번만 생성해 재사용한다.
+_stealth = Stealth()
 
 _CLOUDFLARE_MARKERS = ("cf-browser-verification", "Checking your browser", "cf-chl-")
 _DEFAULT_USER_AGENT = (
@@ -48,7 +53,7 @@ class HttpFetcher:
             try:
                 page = await browser.new_page(user_agent=_DEFAULT_USER_AGENT)
                 if stealth:
-                    await stealth_async(page)
+                    await _stealth.apply_stealth_async(page)
                 await page.goto(url, timeout=self._settings.request_timeout_seconds * 1000)
                 await page.wait_for_load_state("networkidle")
                 return await page.content()

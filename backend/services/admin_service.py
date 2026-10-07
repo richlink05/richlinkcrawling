@@ -51,3 +51,7 @@ class AdminService:
         """전송 실패/대기 건들을 다시 홈해버로 전송 시도한다."""
         service = SubmissionService(self._session)
         return await service.submit_pending()
+
+    async def count_by_status(self) -> dict[str, int]:
+        """상태별 건수 요약 (어드민 화면 상단 카드용)."""
+        return await self._repository.count_by_submission_status()

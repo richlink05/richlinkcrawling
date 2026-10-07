@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     homehaver_api_batch_size: int = Field(default=50)
     homehaver_api_timeout_seconds: int = Field(default=30)
 
+    # 어드민 화면/API 보호용 토큰. 인터넷에 공개되는 주소라서, 이 값과 요청의
+    # X-Admin-Token 헤더가 일치해야만 어드민 API를 쓸 수 있다. 비워두면(기본값)
+    # 안전을 위해 어드민 API 자체를 막는다.
+    admin_token: str = Field(default="")
+
     # Crawling
     max_concurrent_spiders: int = Field(default=20)
     request_timeout_seconds: int = Field(default=30)

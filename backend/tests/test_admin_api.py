@@ -10,6 +10,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.admin.auth import require_admin_token
 from backend.admin.router import get_admin_service
 from backend.api.main import app
 from backend.models.enums import SubmissionStatus
@@ -59,11 +60,17 @@ class _FakeAdminService:
     async def retry_failed(self) -> dict[str, int]:
         return {"attempted": 1, "success": 1, "failed": 0}
 
+    async def count_by_status(self) -> dict[str, int]:
+        return {"pending": 1, "success": 0, "failed": 0, "skipped": 0}
+
 
 @pytest.fixture
 def client() -> TestClient:
     fake_service = _FakeAdminService()
     app.dependency_overrides[get_admin_service] = lambda: fake_service
+    # 인증 토큰 검사는 이 테스트의 관심사가 아니므로(별도 test_admin_auth.py에서
+    # 검증) 항상 통과하도록 오버라이드한다.
+    app.dependency_overrides[require_admin_token] = lambda: None
     with TestClient(app) as test_client:
         test_client.fake_service = fake_service  # type: ignore[attr-defined]
         yield test_client
@@ -98,3 +105,11 @@ class TestRetryFailed:
 
         assert response.status_code == 200
         assert response.json() == {"attempted": 1, "success": 1, "failed": 0}
+
+
+class TestSummaryCounts:
+    def test_returns_counts_by_status(self, client: TestClient) -> None:
+        response = client.get("/admin/projects/summary/counts")
+
+        assert response.status_code == 200
+        assert response.json() == {"pending": 1, "success": 0, "failed": 0, "skipped": 0}

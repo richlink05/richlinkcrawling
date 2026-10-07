@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RichLink 수집함 어드민</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2f3a;
+    --text: #e6e8eb;
+    --muted: #9aa3af;
+    --accent: #4f8cff;
+    --success: #2fbf71;
+    --failed: #e5484d;
+    --pending: #d8a93a;
+    --skipped: #7c8798;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+  }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  .hint { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+
+  #loginBox {
+    max-width: 360px;
+    margin: 80px auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  #loginBox input {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #0c0e12;
+    color: var(--text);
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    background: var(--accent);
+    color: white;
+  }
+  button.secondary { background: #2a2f3a; color: var(--text); }
+  button.danger { background: var(--failed); }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  #app { display: none; max-width: 1100px; margin: 0 auto; }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  select {
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #0c0e12;
+    color: var(--text);
+  }
+  .spacer { flex: 1; }
+
+  .cards { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    min-width: 100px;
+  }
+  .card .num { font-size: 22px; font-weight: 700; }
+  .card .label { font-size: 12px; color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  tr:hover td { background: #1b1f28; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge.success { background: rgba(47,191,113,0.15); color: var(--success); }
+  .badge.failed { background: rgba(229,72,77,0.15); color: var(--failed); }
+  .badge.pending { background: rgba(216,169,58,0.15); color: var(--pending); }
+  .badge.skipped { background: rgba(124,135,152,0.15); color: var(--skipped); }
+
+  .err { color: var(--failed); font-size: 12px; max-width: 220px; white-space: pre-wrap; }
+  .muted { color: var(--muted); }
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #171a21; border: 1px solid var(--border); padding: 10px 16px;
+    border-radius: 8px; display: none; font-size: 13px;
+  }
+  #loadMoreWrap { text-align: center; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<div id="loginBox">
+  <h1>RichLink 수집함 어드민</h1>
+  <div class="hint">Railway/Render 환경변수에 등록한 ADMIN_TOKEN 값을 입력하세요.</div>
+  <input id="tokenInput" type="password" placeholder="관리자 토큰" />
+  <button onclick="login()" style="width:100%; margin-top:8px;">들어가기</button>
+  <div id="loginError" class="err" style="margin-top:8px;"></div>
+</div>
+
+<div id="app">
+  <h1>RichLink 수집함 어드민</h1>
+  <div class="hint">여기서 보이는 데이터는 RichLink 자신의 수집함 DB이고, 홈해버 실제 사이트와는 별개입니다. "상태"는 홈해버 등록 API로의 전송 성공/실패 여부입니다.</div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="toolbar">
+    <select id="statusFilter" onchange="reload()">
+      <option value="">전체 상태</option>
+      <option value="pending">전송 대기(pending)</option>
+      <option value="success">전송 성공(success)</option>
+      <option value="failed">전송 실패(failed)</option>
+      <option value="skipped">건너뜀(skipped)</option>
+    </select>
+    <button class="secondary" onclick="reload()">새로고침</button>
+    <div class="spacer"></div>
+    <button onclick="retryFailed()">실패건 전체 재시도</button>
+    <button class="secondary" onclick="logout()">토큰 지우기</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>상태</th>
+        <th>제목</th>
+        <th>주소</th>
+        <th>시공사</th>
+        <th>가격(만원)</th>
+        <th>시도</th>
+        <th>마지막 에러</th>
+        <th>수집일</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div id="loadMoreWrap">
+    <button class="secondary" id="loadMoreBtn" onclick="loadMore()">더 보기</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const STATUS_LABEL = { pending: "대기", success: "성공", failed: "실패", skipped: "건너뜀" };
+let offset = 0;
+const PAGE_SIZE = 50;
+
+function getToken() { return localStorage.getItem("richlink_admin_token") || ""; }
+function setToken(t) { localStorage.setItem("richlink_admin_token", t); }
+function clearToken() { localStorage.removeItem("richlink_admin_token"); }
+
+function showToast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  setTimeout(() => { el.style.display = "none"; }, 3500);
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    ...options,
+    headers: { ...(options.headers || {}), "X-Admin-Token": getToken() },
+  });
+  if (res.status === 401 || res.status === 503) {
+    clearToken();
+    showLogin(res.status === 503
+      ? "서버에 ADMIN_TOKEN이 설정되어 있지 않습니다. 배포 환경변수를 확인하세요."
+      : "토큰이 올바르지 않습니다.");
+    throw new Error("unauthorized");
+  }
+  if (!res.ok) throw new Error(`요청 실패 (${res.status})`);
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+function showLogin(err) {
+  document.getElementById("loginBox").style.display = "block";
+  document.getElementById("app").style.display = "none";
+  document.getElementById("loginError").textContent = err || "";
+}
+
+function showApp() {
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("app").style.display = "block";
+}
+
+async function login() {
+  const t = document.getElementById("tokenInput").value.trim();
+  if (!t) return;
+  setToken(t);
+  try {
+    await loadSummary();
+    showApp();
+    offset = 0;
+    document.getElementById("rows").innerHTML = "";
+    await loadMore();
+  } catch (e) {
+    // showLogin이 이미 api()에서 호출됨
+  }
+}
+
+function logout() {
+  clearToken();
+  showLogin("");
+}
+
+async function loadSummary() {
+  const counts = await api("/admin/projects/summary/counts");
+  const cards = document.getElementById("cards");
+  cards.innerHTML = "";
+  for (const key of ["pending", "success", "failed", "skipped"]) {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `<div class="num">${counts[key] ?? 0}</div><div class="label">${STATUS_LABEL[key]}</div>`;
+    cards.appendChild(div);
+  }
+}
+
+function renderRows(items) {
+  const tbody = document.getElementById("rows");
+  for (const p of items) {
+    const tr = document.createElement("tr");
+    const price = (p.price_min != null || p.price_max != null)
+      ? `${p.price_min ?? "?"} ~ ${p.price_max ?? "?"}`
+      : "-";
+    tr.innerHTML = `
+      <td><span class="badge ${p.submission_status}">${STATUS_LABEL[p.submission_status] ?? p.submission_status}</span></td>
+      <td>${escapeHtml(p.title)}<div class="muted">${escapeHtml(p.mapped_type ?? p.raw_type ?? "")}</div></td>
+      <td>${escapeHtml(p.city)} ${escapeHtml(p.district)}<div class="muted">${escapeHtml(p.address)}</div></td>
+      <td>${escapeHtml(p.builder_name ?? "-")}</td>
+      <td>${price}</td>
+      <td>${p.attempt_count}</td>
+      <td class="err">${escapeHtml(p.last_error ?? "")}</td>
+      <td class="muted">${(p.created_at ?? "").slice(0, 10)}</td>
+      <td><button class="danger" onclick="deleteProject('${p.id}')">삭제</button></td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+function escapeHtml(s) {
+  if (s == null) return "";
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function loadMore() {
+  const status = document.getElementById("statusFilter").value;
+  const params = new URLSearchParams({ limit: PAGE_SIZE, offset });
+  if (status) params.set("submission_status", status);
+  const items = await api(`/admin/projects?${params.toString()}`);
+  renderRows(items);
+  offset += items.length;
+  document.getElementById("loadMoreBtn").style.display = items.length < PAGE_SIZE ? "none" : "inline-block";
+}
+
+async function reload() {
+  offset = 0;
+  document.getElementById("rows").innerHTML = "";
+  document.getElementById("loadMoreBtn").style.display = "inline-block";
+  await loadSummary();
+  await loadMore();
+}
+
+async function deleteProject(id) {
+  if (!confirm("이 현장을 수집함에서 삭제할까요? (홈해버에는 영향 없음)")) return;
+  await api(`/admin/projects/${id}`, { method: "DELETE" });
+  showToast("삭제했습니다.");
+  reload();
+}
+
+async function retryFailed() {
+  if (!confirm("실패/대기 중인 건을 전부 다시 홈해버로 전송할까요?")) return;
+  const summary = await api("/admin/projects/retry-failed", { method: "POST" });
+  showToast(`재시도 완료 — 시도 ${summary.attempted} / 성공 ${summary.success} / 실패 ${summary.failed}`);
+  reload();
+}
+
+(function init() {
+  if (getToken()) {
+    loadSummary().then(() => {
+      showApp();
+      reload();
+    }).catch(() => {});
+  } else {
+    showLogin("");
+  }
+})();
+</script>
+</body>
+</html>
