@@ -26,10 +26,12 @@ depends_on: Sequence[str] | str | None = None
 IMAGE_CATEGORY = postgresql.ENUM(
     "THUMBNAIL", "FLOOR_PLAN", "INFRA",
     name="image_category",
+    create_type=False,  # 아래 upgrade()에서 명시적으로 미리 만들기 때문에, 테이블 생성 시 중복 생성 방지
 )
 SUBMISSION_STATUS = postgresql.ENUM(
     "PENDING", "SUCCESS", "FAILED", "SKIPPED",
     name="submission_status",
+    create_type=False,  # 아래 upgrade()에서 명시적으로 미리 만들기 때문에, 테이블 생성 시 중복 생성 방지
 )
 
 
