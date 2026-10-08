@@ -78,11 +78,16 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     homehaver_listing_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # lazy="selectin": 비동기(AsyncSession) 환경에서는 관계를 "필요할 때 알아서
+    # 더 가져오는"(lazy="select", 기본값) 방식으로 두면, DB에서 막 조회해온
+    # 객체의 .images/.sources에 접근하는 순간 별도의 동기 DB 접근이 트리거되어
+    # "MissingGreenlet" 에러가 난다. selectin으로 지정하면 본 쿼리 직후 자동으로
+    # 한 번 더 SELECT해서 즉시 채워주기 때문에 이 문제가 생기지 않는다.
     images: Mapped[list["ProjectImage"]] = relationship(
-        back_populates="project", cascade="all, delete-orphan"
+        back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
     sources: Mapped[list["ProjectSource"]] = relationship(
-        back_populates="project", cascade="all, delete-orphan"
+        back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
 
 
