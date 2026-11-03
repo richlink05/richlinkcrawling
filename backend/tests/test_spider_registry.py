@@ -4,10 +4,13 @@ from __future__ import annotations
 import pytest
 
 from backend.base.schemas import ProjectData
+from backend.config.settings import Settings
 from backend.spiders import registry as registry_module
 
 
 class _FakeSpider:
+    name = "fake"
+
     def __init__(self, fetcher: object) -> None:
         pass
 
@@ -23,6 +26,26 @@ class _FakeSpider:
 class _FailingSpider(_FakeSpider):
     async def collect(self) -> list[ProjectData]:
         raise RuntimeError("spider crashed")
+
+
+@pytest.fixture(autouse=True)
+def _enable_all_spiders(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        registry_module, "get_settings", lambda: Settings(enabled_spiders="all", max_concurrent_spiders=5)
+    )
+
+
+class TestSelectSpiders:
+    def test_selects_only_named_spiders(self) -> None:
+        selected = registry_module.select_spiders("applyhome")
+
+        assert [cls.name for cls in selected] == ["applyhome"]
+
+    def test_all_selects_everything(self) -> None:
+        assert registry_module.select_spiders("all") == list(registry_module.SPIDER_REGISTRY)
+
+    def test_unknown_name_selects_nothing(self) -> None:
+        assert registry_module.select_spiders("nope") == []
 
 
 class TestCollectAll:

@@ -32,6 +32,7 @@ RichLink는 홈해버 DB에 절대 직접 연결하지 않는다. 대신:
 - [x] 2단계 — DB 설계 (RichLink 자신의 수집함 스키마)
 - [x] 3단계 — BaseSpider 작성 (수집 전담, 저장/전송은 SubmissionService로 분리)
 - [x] 4단계 — Lotte Spider 작성
+- [x] 5단계 — 청약홈(한국부동산원) 분양정보 API Spider 작성 (건설사별 사이트 크롤링 대신 공식 API 사용)
 - [x] 5단계 — Playwright 공통 모듈 작성
 - [x] 6단계 — ~~이미지 저장 모듈~~ → 이미지는 다운로드하지 않고 URL만 전달 (불필요해짐)
 - [x] 7단계 — 중복 판단 엔진 (RichLink 수집함 내부 비교 전용으로 축소)
@@ -71,6 +72,13 @@ richlink/
 │   └── tests/                  # pytest 테스트
 └── migrations/                 # Alembic (RichLink 수집함 DB 전용)
 ```
+
+## 청약홈 API 수집
+
+- 공공데이터포털 '한국부동산원 청약홈 분양정보 조회 서비스'(무료)를 호출한다. 서비스 키는 **GitHub Secrets의 `APPLYHOME_API_KEY`** 에만 넣는다(코드/채팅/문서에 적지 않는다).
+- 수집 범위: APT, 오피스텔/도시형/민간임대/생활숙박시설. 모집공고일이 최근 `APPLYHOME_LOOKBACK_DAYS`일(기본 30) 이내인 공고만 가져온다.
+- Actions → "RichLink 분양정보 자동 수집" → Run workflow 에서 `spiders`(applyhome/lotte/all)와 `lookback_days`(테스트 30, 1년치 365)를 고를 수 있다. 주간 자동 실행은 기본값(applyhome, 30일)으로 돈다.
+- 같은 공고는 모집공고 URL로 중복 판단해 다시 보내지 않는다. 분양 상태(예정/중/완료)는 수집 시점의 날짜로 계산한 값이며, 이후 갱신하지 않는다.
 
 ## 개발 환경 준비
 

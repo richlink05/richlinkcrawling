@@ -11,14 +11,24 @@ from backend.base.base_spider import BaseSpider
 from backend.base.schemas import ProjectData
 from backend.config.settings import get_settings
 from backend.spiders.builders.lotte_spider import LotteSpider
+from backend.spiders.subscription.applyhome_spider import ApplyhomeSpider
 from backend.utils.fetcher import HttpFetcher
 from backend.utils.logger import get_logger
 
 logger = get_logger("spiders.registry")
 
 SPIDER_REGISTRY: list[type[BaseSpider]] = [
+    ApplyhomeSpider,
     LotteSpider,
 ]
+
+
+def select_spiders(enabled: str) -> list[type[BaseSpider]]:
+    """설정(ENABLED_SPIDERS)에 적힌 이름의 Spider만 고른다. "all"이면 전부."""
+    names = {name.strip() for name in enabled.split(",") if name.strip()}
+    if "all" in names:
+        return list(SPIDER_REGISTRY)
+    return [cls for cls in SPIDER_REGISTRY if getattr(cls, "name", None) in names]
 
 
 async def collect_all() -> list[ProjectData]:
@@ -36,7 +46,9 @@ async def collect_all() -> list[ProjectData]:
                 logger.error(f"{spider_cls.__name__} 수집 중 예상치 못한 오류", exc_info=True)
                 return []
 
-    results = await asyncio.gather(*(_run(spider_cls) for spider_cls in SPIDER_REGISTRY))
+    selected = select_spiders(settings.enabled_spiders)
+    logger.info(f"이번 실행 Spider: {[getattr(cls, 'name', cls.__name__) for cls in selected]}")
+    results = await asyncio.gather(*(_run(spider_cls) for spider_cls in selected))
     items: list[ProjectData] = []
     for result in results:
         items.extend(result)

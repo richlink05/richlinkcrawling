@@ -14,6 +14,7 @@ from backend.models.enums import ListingStatus, PropertyType
 _TYPE_MAP: dict[str, PropertyType] = {
     "아파트": PropertyType.APARTMENT,
     "민간임대아파트": PropertyType.APARTMENT,
+    "민간임대": PropertyType.APARTMENT,  # 청약홈 오피스텔/도시형/민간임대 분류의 "민간임대"
     "도시형생활주택": PropertyType.APARTMENT,  # 홈해버에 별도 카테고리가 없어 가장 가까운 값으로 매핑
     "타운하우스": PropertyType.APARTMENT,  # 위와 동일한 이유
     "주상복합": PropertyType.APARTMENT,

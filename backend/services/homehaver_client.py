@@ -101,7 +101,15 @@ class HomehaverApiClient:
 
         if response.status_code >= 400:
             error_detail = _safe_extract_error(response)
+            if not error_detail.strip():
+                error_detail = f"HTTP {response.status_code} (응답 본문 없음 — 홈해버 서버 내부 오류 가능성)"
             logger.error(f"홈해버 API 요청 오류({response.status_code}): {error_detail}")
+            # 원인 추적용: 보낸 첫 건의 내용(공개 분양정보라 비밀값 아님, 토큰은 제외)과
+            # 응답 헤더 일부를 남긴다. 홈해버 팀이 서버 로그와 대조할 수 있게 한다.
+            logger.error(
+                f"  └ 보낸 건수 {len(chunk)}건, 첫 건 내용: {chunk[0]}, "
+                f"응답 content-type: {response.headers.get('content-type')}"
+            )
             return [
                 SubmissionResult(client_ref=ref, success=False, error=error_detail)
                 for ref in client_refs

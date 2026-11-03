@@ -13,7 +13,7 @@ Settings는 애플리케이션 전체에서 의존성 주입을 통해 사용된
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -50,6 +50,18 @@ class Settings(BaseSettings):
     homehaver_api_batch_size: int = Field(default=50)
     homehaver_api_timeout_seconds: int = Field(default=30)
 
+    # 청약홈(한국부동산원) 분양정보 OpenAPI — 공공데이터포털에서 발급받은 일반 인증키.
+    # 요청 주소에 포함되는 비밀값이므로 로그에 남기지 않는다(GitHub Secrets에만 보관).
+    applyhome_api_key: str = Field(default="")
+    applyhome_base_url: str = Field(default="https://api.odcloud.kr/api/ApplyhomeInfoDetailSvc/v1")
+    applyhome_lookback_days: int = Field(default=30)  # 모집공고일이 오늘-N일 이후인 공고만 수집
+    applyhome_per_page: int = Field(default=100)
+    applyhome_unit_concurrency: int = Field(default=5)  # 주택형별(가격) 조회 동시 호출 수
+
+    # 이번 실행에서 돌릴 Spider 이름(쉼표 구분, 예: "applyhome" 또는 "applyhome,lotte").
+    # "all"이면 등록된 전부를 돌린다. GitHub Actions 수동 실행 화면에서 고를 수 있다.
+    enabled_spiders: str = Field(default="applyhome")
+
     # 어드민 화면/API 보호용 토큰. 인터넷에 공개되는 주소라서, 이 값과 요청의
     # X-Admin-Token 헤더가 일치해야만 어드민 API를 쓸 수 있다. 비워두면(기본값)
     # 안전을 위해 어드민 API 자체를 막는다.
@@ -59,6 +71,21 @@ class Settings(BaseSettings):
     max_concurrent_spiders: int = Field(default=20)
     request_timeout_seconds: int = Field(default=30)
     playwright_headless: bool = Field(default=True)
+
+    @field_validator("homehaver_api_url", mode="before")
+    @classmethod
+    def _clean_homehaver_url(cls, value: object) -> object:
+        """GitHub Secret이 비어 있거나 앞뒤 공백/따옴표가 섞여 들어와도 기본 주소로 안전하게 동작시킨다."""
+        if value is None:
+            return value
+        cleaned = str(value).strip().strip("\"'").strip()
+        return cleaned or "https://www.homehaber.com/api/crawler/listings"
+
+    @field_validator("homehaver_api_token", "applyhome_api_key", mode="before")
+    @classmethod
+    def _strip_secret(cls, value: object) -> object:
+        """비밀값 앞뒤의 공백/줄바꿈(붙여넣기 실수)을 제거한다."""
+        return value.strip() if isinstance(value, str) else value
 
     # Duplicate detection — RichLink 자신의 수집함 DB 내부에서만 비교한다.
     duplicate_similarity_threshold: float = Field(default=0.90)
